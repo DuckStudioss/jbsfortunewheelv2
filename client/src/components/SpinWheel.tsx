@@ -3,7 +3,8 @@ import { Wheel } from "react-custom-roulette";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
-import { AlertCircle, Ticket, User, Mail, Phone, Hash, Play } from "lucide-react";
+import { AlertCircle, Ticket, User, Mail, Phone, Hash, Play, Download } from "lucide-react";
+import html2canvas from "html2canvas";
 import { API_URL } from "../config";
 
 const data = [
@@ -26,6 +27,8 @@ export const SpinWheel: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const couponRef = useRef<HTMLDivElement>(null);
 
   const validateCedula = (value: string) => /^\d{9}$/.test(value);
   const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -131,8 +134,7 @@ export const SpinWheel: React.FC = () => {
       triggerConfetti();
     }
 
-    try {
-      await axios.post(`${API_URL}/api/spins`, {
+      const response = await axios.post(`${API_URL}/api/spins`, {
         customerName: `${firstName} ${lastName}`,
         cedula,
         email,
@@ -140,8 +142,24 @@ export const SpinWheel: React.FC = () => {
         award: data[prizeNumber].option,
         isSpecialPrize: false,
       });
+      if (response.data.id) {
+        setCouponCode(response.data.id.substring(0, 8).toUpperCase());
+      }
     } catch (error) {
       console.error("Error saving result:", error);
+    }
+  };
+
+  const downloadCoupon = async () => {
+    if (couponRef.current) {
+      const canvas = await html2canvas(couponRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+      });
+      const link = document.createElement('a');
+      link.download = `jbs-cupon-${couponCode}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.click();
     }
   };
 
@@ -177,14 +195,26 @@ export const SpinWheel: React.FC = () => {
               </motion.h2>
               <motion.div 
                 className="prize-badge"
+                ref={couponRef}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
               >
-                <Ticket size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
+                <img src="/assets/Logo.png" alt="Logo" style={{ width: 120, marginBottom: '1rem' }} />
                 <h3>{data[prizeNumber].option}</h3>
+                {couponCode && (
+                  <div className="coupon-code">
+                    <span>CÓDIGO:</span>
+                    <strong>{couponCode}</strong>
+                  </div>
+                )}
               </motion.div>
-              <p>Revisa tu correo electrónico para reclamar tu premio.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+                <p>Revisa tu correo electrónico para reclamar tu premio.</p>
+                <button className="download-btn" onClick={downloadCoupon}>
+                  <Download size={18} /> DESCARGAR CUPÓN (JPG)
+                </button>
+              </div>
             </>
           )}
           <button className="play-again-btn" onClick={() => window.location.reload()}>

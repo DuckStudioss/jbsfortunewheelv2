@@ -306,6 +306,49 @@ button[type="submit"]:active {
   color: var(--text-main);
   word-wrap: break-word;
 }
+
+.coupon-code {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.coupon-code span {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+
+.coupon-code strong {
+  font-size: 1.5rem;
+  color: var(--secondary);
+  font-family: var(--font-heading);
+  letter-spacing: 1px;
+}
+
+.download-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.8rem 1.5rem;
+  border-radius: 100px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.download-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
 .result-container h2 {
   font-family: var(--font-heading);
   font-size: 3rem;
