@@ -1,18 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Wheel } from "react-custom-roulette";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
+import { AlertCircle, Ticket, User, Mail, Phone, Hash, Play } from "lucide-react";
 import { API_URL } from "../config";
 
 const data = [
-  { option: "Papitas GRATIS" },
-  { option: "Postre GRATIS" },
-  { option: "Intenta de nuevo" },
-  { option: "Papas Refresco GRATIS" },
-  { option: "Intenta de nuevo" },
+  { option: "Papitas GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Postre GRATIS", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "Intenta de nuevo", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Papas Refresco GRATIS", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "Intenta de nuevo", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
 ];
 
 export const SpinWheel: React.FC = () => {
-  const [customerName, setCustomerName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [cedula, setCedula] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -20,101 +24,101 @@ export const SpinWheel: React.FC = () => {
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validateCedula = (value: string) => {
-    return /^\d{9}$/.test(value); // Validates exactly 9 digits for Costa Rica IDs
-  };
+  const validateCedula = (value: string) => /^\d{9}$/.test(value);
+  const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const validatePhoneNumber = (value: string) => /^\d{8}$/.test(value);
 
-  const validateEmail = (value: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  };
+  const triggerConfetti = () => {
+    const duration = 3 * 1000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-  const validatePhoneNumber = (value: string) => {
-    return /^[2-8]\d{7}$/.test(value); // Validates Costa Rica phone numbers (8 digits starting with 2-8)
-  };
+    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-  const checkExistingSpin = async (cedula: string) => {
-    try {
-      const response = await axios.get(`${API_URL}/api/spins/cedula/${cedula}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return null;
+    const interval: any = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
       }
-      throw error;
-    }
-  };
 
-  const checkSpecialPrizeAvailable = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/spins/special-prize`);
-      return !response.data.awarded; // returns true if special prize hasn't been awarded yet
-    } catch (error) {
-      console.error("Error checking special prize:", error);
-      return false; // assume prize is not available in case of error
-    }
+      const particleCount = 50 * (timeLeft / duration);
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+    }, 250);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
-    if (!customerName || !cedula || !email || !phoneNumber) {
-      setError("Por favor complete todos los campos");
+    if (!firstName || !lastName || !email || !cedula) {
+      setError("Por favor complete los campos obligatorios (Nombre, Apellido, Cédula y Correo)");
+      setIsSubmitting(false);
       return;
     }
 
     if (!validateCedula(cedula)) {
       setError("La cédula debe contener exactamente 9 números");
+      setIsSubmitting(false);
       return;
     }
 
     if (!validateEmail(email)) {
-      setError("Por favor ingrese un correo electrónico válido");
+      setError("Ingrese un correo electrónico válido");
+      setIsSubmitting(false);
       return;
     }
 
-    if (!validatePhoneNumber(phoneNumber)) {
-      setError("Por favor ingrese un número de teléfono válido (8 dígitos)");
+    if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
+      setError("Ingrese un número de teléfono válido (8 dígitos)");
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      const existingSpin = await checkExistingSpin(cedula);
-      if (existingSpin) {
-        setError("Esta cédula ya ha sido utilizada para un giro");
+      // Check existing spin by cedula
+      try {
+        await axios.get(`${API_URL}/api/spins/cedula/${cedula}`);
+        setError("Esta cédula ya ha participado");
+        setIsSubmitting(false);
         return;
+      } catch (err: any) {
+        if (err.response?.status !== 404) throw err;
       }
 
-      // Check if special prize is still available
-      const isSpecialPrizeAvailable = await checkSpecialPrizeAvailable();
+      // Check existing spin by email
+      try {
+        await axios.get(`${API_URL}/api/spins/email/${email}`);
+        setError("Este correo electrónico ya ha participado");
+        setIsSubmitting(false);
+        return;
+      } catch (err: any) {
+        if (err.response?.status !== 404) throw err;
+      }
+
+      // Check special prize
+      const specialRes = await axios.get(`${API_URL}/api/spins/special-prize`);
+      const isSpecialPrizeAvailable = !specialRes.data.awarded;
 
       let newPrizeNumber;
-      if (isSpecialPrizeAvailable) {
-        // 1% chance to win the special prize if it's still available
-        const random = Math.random();
-        if (random < 0.01) {
-          newPrizeNumber = 3; // index of "4 Combos JBs Classic"
-        } else {
-          // Generate number excluding the special prize index
-          const availablePrizes = [0, 1, 2, 4];
-          const randomIndex = Math.floor(
-            Math.random() * availablePrizes.length
-          );
-          newPrizeNumber = availablePrizes[randomIndex];
-        }
+      if (isSpecialPrizeAvailable && Math.random() < 0.01) {
+        newPrizeNumber = 3; // Special index if we had one, but let's just pick from data
       } else {
-        // Special prize not available, exclude it from possible outcomes
-        const availablePrizes = [0, 1, 2, 4];
-        const randomIndex = Math.floor(Math.random() * availablePrizes.length);
-        newPrizeNumber = availablePrizes[randomIndex];
+        const available = [0, 1, 2, 3, 4].filter(i => data[i].option !== "4 Combos JBs Classic"); // Example logic
+        newPrizeNumber = available[Math.floor(Math.random() * available.length)];
       }
 
       setPrizeNumber(newPrizeNumber);
       setMustSpin(true);
     } catch (error) {
-      console.error("Error checking spin:", error);
-      setError("Ocurrió un error al verificar la cédula");
+      console.error("Error:", error);
+      setError("Ocurrió un error al verificar los datos");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,58 +126,70 @@ export const SpinWheel: React.FC = () => {
     setMustSpin(false);
     setShowResult(true);
 
+    if (data[prizeNumber].option !== "Intenta de nuevo") {
+      triggerConfetti();
+    }
+
     try {
-      const response = await axios.post(`${API_URL}/api/spins`, {
-        customerName,
+      await axios.post(`${API_URL}/api/spins`, {
+        customerName: `${firstName} ${lastName}`,
         cedula,
         email,
         phoneNumber,
         award: data[prizeNumber].option,
-        isSpecialPrize: prizeNumber === 3, // Add flag for special prize
+        isSpecialPrize: false,
       });
-      console.log("Response:", response.data);
     } catch (error) {
-      console.error("Error saving spin result:", error);
-      if (axios.isAxiosError(error)) {
-        console.error("Error details:", error.response?.data);
-      }
+      console.error("Error saving result:", error);
     }
-  };
-
-  const handlePlayAgain = () => {
-    setCustomerName("");
-    setCedula("");
-    setEmail("");
-    setPhoneNumber("");
-    setShowResult(false);
-    setMustSpin(false);
-    setError(null);
   };
 
   if (showResult) {
     const isLose = data[prizeNumber].option === "Intenta de nuevo";
     return (
       <div className="main-container">
-        <div className="result-container">
+        <motion.div 
+          className="result-container"
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", damping: 15 }}
+        >
           {isLose ? (
             <>
-              <h2>¡Lo sentimos {customerName}!</h2>
+              <motion.h2 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+                ¡Lo sentimos {firstName}!
+              </motion.h2>
               <p>Esta vez no ganaste un premio</p>
-              <p style={{ fontSize: "12px" }}>
-                Gracias por participar. ¡Mejor suerte la próxima!
-              </p>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+                ¡Gracias por participar! Mejor suerte la próxima vez.
+              </span>
             </>
           ) : (
             <>
-              <h2>¡Felicitaciones {customerName}!</h2>
-              <p>Has ganado: {data[prizeNumber].option}</p>
-              <p style={{ fontSize: "12px" }}>
-                Recuerda mostrar tu factura para reclamar tu premio
-              </p>
+              <motion.h2 
+                style={{ color: 'var(--primary)' }}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                ¡FELICITACIONES!
+              </motion.h2>
+              <motion.div 
+                className="prize-badge"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
+              >
+                <Ticket size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
+                <h3>{data[prizeNumber].option}</h3>
+              </motion.div>
+              <p>Revisa tu correo electrónico para reclamar tu premio.</p>
             </>
           )}
-          <button onClick={handlePlayAgain}>JUGAR DE NUEVO</button>
-        </div>
+          <button className="play-again-btn" onClick={() => window.location.reload()}>
+            JUGAR DE NUEVO
+          </button>
+        </motion.div>
       </div>
     );
   }
@@ -181,93 +197,131 @@ export const SpinWheel: React.FC = () => {
   return (
     <div className="main-container">
       <div className="content-container">
-        <div className="form-section">
-          <h1>LLENA, GIRA, ¡GANA!</h1>
-          {error && <div className="error-message">{error}</div>}
+        <motion.div 
+          className="form-section"
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h1>LLENA,<br/>GIRA,<br/><span style={{ color: 'var(--primary)' }}>¡GANA!</span></h1>
+          
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div 
+                className="error-message"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <AlertCircle size={18} />
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <form onSubmit={handleSubmit} className="spin-form">
-            <div className="form-group">
-              <label htmlFor="name">NOMBRE</label>
-              <input
-                id="name"
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                required
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label><User size={12} style={{ marginRight: 4 }} /> NOMBRE</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Juan"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label><User size={12} style={{ marginRight: 4 }} /> APELLIDO</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Pérez"
+                  required
+                />
+              </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="cedula">CÉDULA</label>
+              <label><Hash size={12} style={{ marginRight: 4 }} /> CÉDULA</label>
               <input
-                id="cedula"
                 type="text"
                 maxLength={9}
                 value={cedula}
                 onChange={(e) => setCedula(e.target.value.replace(/\D/g, ""))}
-                required
                 placeholder="123456789"
+                required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">CORREO ELECTRÓNICO</label>
+              <label><Mail size={12} style={{ marginRight: 4 }} /> CORREO ELECTRÓNICO</label>
               <input
-                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="juan@ejemplo.com"
                 required
-                placeholder="ejemplo@correo.com"
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="phoneNumber">NÚMERO DE CELULAR</label>
+              <label><Phone size={12} style={{ marginRight: 4 }} /> TELÉFONO (OPCIONAL)</label>
               <input
-                id="phoneNumber"
                 type="tel"
                 maxLength={8}
                 value={phoneNumber}
-                onChange={(e) =>
-                  setPhoneNumber(e.target.value.replace(/\D/g, ""))
-                }
-                required
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
                 placeholder="88888888"
               />
             </div>
-            <button type="submit">GIRAR</button>
+
+            <button type="submit" disabled={isSubmitting || mustSpin}>
+              {isSubmitting ? "VERIFICANDO..." : mustSpin ? "GIRANDO..." : (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <Play size={18} fill="white" /> EMPEZAR A GIRAR
+                </span>
+              )}
+            </button>
           </form>
-        </div>
-        <div className="wheel-section">
+        </motion.div>
+
+        <motion.div 
+          className="wheel-section"
+          initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          transition={{ duration: 1, delay: 0.2 }}
+        >
+          <div className="wheel-center-logo">
+            <img src="/assets/Logo.png" alt="Center Logo" />
+          </div>
           <Wheel
             mustStartSpinning={mustSpin}
             prizeNumber={prizeNumber}
             data={data}
             onStopSpinning={handleStopSpinning}
-            outerBorderColor="#333333"
-            outerBorderWidth={3}
-            innerBorderColor="#333333"
-            innerBorderWidth={1}
+            outerBorderColor="#ffffff"
+            outerBorderWidth={8}
+            innerBorderColor="#ffffff"
+            innerBorderWidth={0}
             innerRadius={20}
-            radiusLineColor="#666666"
+            radiusLineColor="#ffffff"
             radiusLineWidth={1}
-            fontSize={13}
-            textDistance={59}
-            fontFamily="Montserrat"
-            backgroundColors={["#FFFFFF", "#c9c7c7"]}
-            textColors={["#333333"]}
+            fontSize={16}
+            textDistance={60}
+            fontFamily="Outfit"
+            fontWeight={800}
             perpendicularText={false}
-            spinDuration={0.8}
+            spinDuration={0.5}
             pointerProps={{
               style: {
-                backgroundColor: "white",
-                border: "2px solid #333333",
-                color: "#333333",
-              },
+                filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))',
+                transform: 'scale(1.2)'
+              }
             }}
-            fontWeight={900}
           />
-        </div>
+        </motion.div>
       </div>
     </div>
   );

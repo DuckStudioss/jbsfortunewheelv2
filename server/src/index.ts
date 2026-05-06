@@ -1,11 +1,22 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { Database } from 'sqlite3';
+import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config();
+
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_URL.startsWith('http') && process.env.SUPABASE_KEY) 
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
+  : null;
+
+if (supabase) {
+  console.log('Supabase client initialized successfully');
+} else {
+  console.log('Supabase credentials missing, falling back to SQLite');
+}
 
 console.log('Email config:', {
   user: process.env.EMAIL_USER,
@@ -18,6 +29,7 @@ const port = process.env.PORT || 3001;
 // Update CORS configuration to allow requests from your Vercel domain
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:5173',
   'https://pizza-wheel.vercel.app', // Add your Vercel domain
   'https://jbsfortunewheelv2.vercel.apps',
   process.env.FRONTEND_URL // This will be used if you set it in environment variables
@@ -49,18 +61,19 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Log middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // Update database initialization
 const dbPath = process.env.RENDER_DISK_PATH 
   ? path.join(process.env.RENDER_DISK_PATH, 'spins4.db')
   : 'spins4.db';
 
-const db = new Database(dbPath, (err) => {
-  if (err) {
-    console.error('Database connection error:', err);
-  } else {
-    console.log('Connected to spins4 database at:', dbPath);
-  }
-});
+const db = new Database(dbPath);
+console.log('Connected to spins4 database at:', dbPath);
 
 interface Spin {
   id: string;
@@ -73,11 +86,13 @@ interface Spin {
 }
 
 // Only create table if it doesn't exist
-db.run(`
+db.exec(`
   CREATE TABLE IF NOT EXISTS spins (
     id TEXT PRIMARY KEY,
     customerName TEXT NOT NULL,
+    cedula TEXT NOT NULL,
     email TEXT NOT NULL,
+    phoneNumber TEXT NOT NULL,
     award TEXT NOT NULL,
     isSpecialPrize BOOLEAN DEFAULT 0,
     isDisbursed BOOLEAN DEFAULT 0,
@@ -93,6 +108,9 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -106,147 +124,222 @@ transporter.verify(function (error, success) {
 });
 
 // Modify the POST /api/spins endpoint
-app.post('/api/spins', (req: Request, res: Response) => {
-  const { customerName, email, award, isSpecialPrize } = req.body as Spin;
+app.post('/api/spins', async (req: Request, res: Response) => {
+  const { customerName, cedula, email, phoneNumber, award, isSpecialPrize } = req.body as any;
   const id = uuidv4();
 
-  db.run(
-    'INSERT INTO spins (id, customerName, email, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, customerName, email, award, isSpecialPrize ? 1 : 0, 0],
-    async (err) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
+  try {
+    // 1. Check if email or cedula already exists
+    if (supabase) {
+      const { data: existingEmail } = await supabase
+        .from('spins')
+        .select('id')
+        .eq('email', email)
+        .single();
+      
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Este correo electrónico ya ha participado' });
       }
 
-      // Send email if prize was won (not "Intenta de nuevo")
-      if (award !== "Intenta de nuevo") {
-        try {
-          await transporter.sendMail({
-            from: `"JBs Rewards" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: '¡Felicitaciones por tu premio en JBs! 🎉',
-            attachments: [{
-              filename: 'Logo.png',
-              path: './public/Logo.png', // Adjust this path to where your logo is stored
-              cid: 'logo' // Content ID for referencing in the HTML
-            }],
-            html: `
-              <div style="background-color: #000000; color: white; font-family: Arial, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; border-radius: 8px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <img src="cid:logo" alt="JBs Logo" style="max-width: 200px;">
-                </div>
-                
-                <h2 style="font-size: 32px; text-transform: uppercase; margin: 0 0 20px 0; text-align: center; color: white;">¡Felicitaciones ${customerName}!</h2>
-                
-                <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <p style="font-size: 24px; text-align: center; margin: 0; color: #e1261c;">Has ganado: <strong>${award}</strong></p>
-                </div>
-
-                <div style="margin: 30px 0; line-height: 1.6;">
-                  <p style="margin: 10px 0;">Para reclamar tu premio:</p>
-                  <ul style="list-style: none; padding: 0; margin: 20px 0;">
-                    <li style="margin: 10px 0;">✅ Visita cualquier sucursal de JBs</li>
-                    <li style="margin: 10px 0;">✅ Presenta este correo</li>
-                    <li style="margin: 10px 0;">✅ Muestra tu cedula</li>
-                  </ul>
-                </div>
-
-                <div style="background: #e1261c; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                  <p style="margin: 0; font-weight: bold;">Número de referencia: ${id}</p>
-                </div>
-
-                <p style="color: #ff9999; font-size: 14px; text-align: center; margin-top: 30px;">⚠️ Este premio es válido hasta el 31 de marzo de 2025</p>
-
-                <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
-                  <p style="margin: 0;">¡Gracias por participar!</p>
-                </div>
-              </div>
-            `
-          });
-        } catch (emailError) {
-          console.error('Error sending email:', emailError);
-          // Don't fail the request if email fails
-        }
+      const { data: existingCedula } = await supabase
+        .from('spins')
+        .select('id')
+        .eq('cedula', cedula)
+        .single();
+      
+      if (existingCedula) {
+        return res.status(400).json({ error: 'Esta cédula ya ha participado' });
+      }
+    } else {
+      const existingEmail = db.prepare('SELECT id FROM spins WHERE email = ?').get(email);
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Este correo electrónico ya ha participado' });
       }
 
-      res.status(201).json({ 
-        id, 
-        customerName, 
-        email, 
-        award,
-        isSpecialPrize,
-        isDisbursed: false 
-      });
+      const existingCedula = db.prepare('SELECT id FROM spins WHERE cedula = ?').get(cedula);
+      if (existingCedula) {
+        return res.status(400).json({ error: 'Esta cédula ya ha participado' });
+      }
     }
-  );
+
+    // 2. Insert the new spin
+    if (supabase) {
+      const { error: insertError } = await supabase
+        .from('spins')
+        .insert([{
+          id,
+          customerName,
+          cedula,
+          email,
+          phoneNumber,
+          award,
+          isSpecialPrize: !!isSpecialPrize,
+          isDisbursed: false
+        }]);
+      
+      if (insertError) throw insertError;
+    } else {
+      db.prepare(
+        'INSERT INTO spins (id, customerName, cedula, email, phoneNumber, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, customerName, cedula, email, phoneNumber, award, isSpecialPrize ? 1 : 0, 0);
+    }
+    console.log('Spin saved successfully:', { id, customerName, email, award });
+
+    // Send email logic (remains same)
+    if (award !== "Intenta de nuevo") {
+      try {
+        await transporter.sendMail({
+          from: `"JBs Rewards" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: '¡Felicitaciones por tu premio en JBs! 🎉',
+          attachments: [{
+            filename: 'Logo.png',
+            path: './public/Logo.png',
+            cid: 'logo'
+          }],
+          html: `
+            <div style="background-color: #000000; color: white; font-family: Arial, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; border-radius: 8px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <img src="cid:logo" alt="JBs Logo" style="max-width: 200px;">
+              </div>
+              <h2 style="font-size: 32px; text-transform: uppercase; margin: 0 0 20px 0; text-align: center; color: white;">¡Felicitaciones ${customerName}!</h2>
+              <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="font-size: 24px; text-align: center; margin: 0; color: #e1261c;">Has ganado: <strong>${award}</strong></p>
+              </div>
+              <div style="margin: 30px 0; line-height: 1.6;">
+                <p style="margin: 10px 0;">Para reclamar tu premio:</p>
+                <ul style="list-style: none; padding: 0; margin: 20px 0;">
+                  <li style="margin: 10px 0;">✅ Visita cualquier sucursal de JBs</li>
+                  <li style="margin: 10px 0;">✅ Presenta este correo</li>
+                  <li style="margin: 10px 0;">✅ Muestra tu cedula</li>
+                </ul>
+              </div>
+              <div style="background: #e1261c; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <p style="margin: 0; font-weight: bold;">Número de referencia: ${id}</p>
+              </div>
+              <p style="color: #ff9999; font-size: 14px; text-align: center; margin-top: 30px;">⚠️ Este premio es válido hasta el 31 de marzo de 2025</p>
+              <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                <p style="margin: 0;">¡Gracias por participar!</p>
+              </div>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+      }
+    }
+
+    res.status(201).json({ 
+      id, 
+      customerName, 
+      email, 
+      award,
+      isSpecialPrize,
+      isDisbursed: false 
+    });
+  } catch (err: any) {
+    console.error('Spin Error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get all spins
-app.get('/api/spins', (_: Request, res: Response) => {
-  db.all('SELECT * FROM spins ORDER BY createdAt DESC', (err, rows: Spin[]) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+app.get('/api/spins', async (_: Request, res: Response) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('spins')
+        .select('*')
+        .order('createdAt', { ascending: false });
+      
+      if (error) throw error;
+      res.json(data);
+    } else {
+      const rows = db.prepare('SELECT * FROM spins ORDER BY createdAt DESC').all() as Spin[];
+      const formattedRows = rows.map(row => ({
+        ...row,
+        isSpecialPrize: !!row.isSpecialPrize,
+        isDisbursed: !!row.isDisbursed
+      }));
+      res.json(formattedRows);
     }
-    // Convert SQLite boolean (0/1) to actual booleans
-    const formattedRows = rows.map(row => ({
-      ...row,
-      isSpecialPrize: !!row.isSpecialPrize,
-      isDisbursed: !!row.isDisbursed
-    }));
-    res.json(formattedRows);
-  });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Replace orderNumber endpoint with cedula endpoint
-app.get("/api/spins/cedula/:cedula", (req, res) => {
+// Endpoint to check by email
+app.get("/api/spins/email/:email", async (req, res) => {
+  const { email } = req.params;
+  
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('spins')
+        .select('*')
+        .eq('email', email)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) return res.status(404).json({ message: "Spin not found" });
+      res.json(data);
+    } else {
+      const row = db.prepare('SELECT * FROM spins WHERE email = ?').get(email) as any;
+      if (!row) return res.status(404).json({ message: "Spin not found" });
+      res.json(row);
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Error interno" });
+  }
+});
+
+// Endpoint to check by cedula
+app.get("/api/spins/cedula/:cedula", async (req, res) => {
   const { cedula } = req.params;
   
-  db.get('SELECT * FROM spins WHERE cedula = ?', [cedula], (err, row: any) => {
-    if (err) {
-      console.error("Error fetching spin:", err);
-      return res.status(500).json({ message: "Internal server error" });
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('spins')
+        .select('*')
+        .eq('cedula', cedula)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) return res.status(404).json({ message: "Spin not found" });
+      res.json(data);
+    } else {
+      const row = db.prepare('SELECT * FROM spins WHERE cedula = ?').get(cedula) as any;
+      if (!row) return res.status(404).json({ message: "Spin not found" });
+      res.json(row);
     }
-    
-    if (!row) {
-      return res.status(404).json({ message: "Spin not found" });
-    }
-    
-    const formattedRow = {
-      ...row,
-      isSpecialPrize: !!row.isSpecialPrize,
-      isDisbursed: !!row.isDisbursed
-    };
-    
-    res.json(formattedRow);
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Error interno" });
+  }
 });
 
 // Add endpoint to check special prize availability
 app.get("/api/spins/special-prize", (_, res) => {
-  db.get('SELECT COUNT(*) as count FROM spins WHERE isSpecialPrize = 1', (err, row: { count: number }) => {
-    if (err) {
-      console.error("Error checking special prize:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-    
+  try {
+    const row = db.prepare('SELECT COUNT(*) as count FROM spins WHERE isSpecialPrize = 1').get() as { count: number };
     res.json({ awarded: row.count > 0 });
-  });
+  } catch (err) {
+    console.error("Error checking special prize:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // Add endpoint to update disbursement status
 app.patch("/api/spins/:id/disburse", (req, res) => {
   const { id } = req.params;
   
-  db.run('UPDATE spins SET isDisbursed = 1 WHERE id = ?', [id], (err) => {
-    if (err) {
-      console.error("Error updating disbursement status:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-    
+  try {
+    db.prepare('UPDATE spins SET isDisbursed = 1 WHERE id = ?').run(id);
     res.json({ message: "Disbursement status updated successfully" });
-  });
+  } catch (err) {
+    console.error("Error updating disbursement status:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 app.listen(port, () => {

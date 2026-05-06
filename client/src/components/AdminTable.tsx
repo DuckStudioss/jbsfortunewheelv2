@@ -19,11 +19,12 @@ const FIELD_LABELS: Record<string, string> = {
 
 const COLUMNS = [
   { field: "id", label: "ID", className: "col-id" },
-  { field: "customerName", label: "Nombre del Cliente", className: "col-name" },
+  { field: "customerName", label: "Nombre", className: "col-name" },
+  { field: "cedula", label: "Cédula", className: "col-cedula" },
   { field: "email", label: "Email", className: "col-email" },
+  { field: "phoneNumber", label: "Teléfono", className: "col-phone" },
   { field: "award", label: "Premio", className: "col-prize" },
   { field: "createdAt", label: "Fecha", className: "col-date" },
-  { field: "isSpecialPrize", label: "Especial", className: "col-special" },
   { field: "isDisbursed", label: "Estado", className: "col-status" },
 ] as const;
 
@@ -104,23 +105,21 @@ export const AdminTable: React.FC<AdminTableProps> = ({
           <tbody>
             {sortedAndFilteredSpins.map((spin) => (
               <tr key={spin.id}>
-                <td className="col-id">{spin.id}</td>
+                <td className="col-id">{spin.id.substring(0, 8)}...</td>
                 <td className="col-name">{spin.customerName}</td>
+                <td className="col-cedula">{spin.cedula}</td>
                 <td className="col-email">{spin.email}</td>
+                <td className="col-phone">{spin.phoneNumber}</td>
                 <td className="col-prize">{spin.award}</td>
                 <td className="col-date">
                   {new Date(spin.createdAt).toLocaleString("es-CR", {
-                    timeZone: "America/Costa_Rica",
-                    dateStyle: "medium",
-                    timeStyle: "medium",
+                    dateStyle: "short",
+                    timeStyle: "short",
                   })}
-                </td>
-                <td className="col-special">
-                  {spin.isSpecialPrize ? "Si" : "No"}
                 </td>
                 <td className="col-status">
                   {spin.isDisbursed ? (
-                    <span className="status-badge">Si</span>
+                    <span className="status-badge">Entregado</span>
                   ) : (
                     <div className="button-group">
                       <button
@@ -129,7 +128,6 @@ export const AdminTable: React.FC<AdminTableProps> = ({
                       >
                         Entregar
                       </button>
-                      <button className="status-button reject">Rechazar</button>
                     </div>
                   )}
                 </td>
