@@ -8,10 +8,11 @@ import { API_URL } from "../config";
 
 const data = [
   { option: "Papitas GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
-  { option: "Postre GRATIS", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
-  { option: "Intenta de nuevo", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
-  { option: "Papas Refresco GRATIS", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
-  { option: "Intenta de nuevo", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Intenta de nuevo", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "Postre GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Intenta de nuevo", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "Papas Refresco GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Intenta de nuevo", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
 ];
 
 export const SpinWheel: React.FC = () => {
@@ -108,7 +109,7 @@ export const SpinWheel: React.FC = () => {
       if (isSpecialPrizeAvailable && Math.random() < 0.01) {
         newPrizeNumber = 3; // Special index if we had one, but let's just pick from data
       } else {
-        const available = [0, 1, 2, 3, 4].filter(i => data[i].option !== "4 Combos JBs Classic"); // Example logic
+        const available = data.map((_, i) => i);
         newPrizeNumber = available[Math.floor(Math.random() * available.length)];
       }
 
