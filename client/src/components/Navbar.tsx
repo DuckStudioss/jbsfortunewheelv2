@@ -7,9 +7,14 @@ const Logo = "/assets/Logo.png";
 export const Navbar: React.FC = () => {
   const sucursales = [
     {
-      name: "Escazu",
+      name: "Escazú",
       location: "https://maps.app.goo.gl/vs1ArLzSubmfoRpA6",
       express: "https://www.ubereats.com/cr-en/store/jbs-burgers-escazu/KoXbu46cROqOdd4_YwtkGw",
+    },
+    {
+      name: "Belén",
+      location: "https://maps.app.goo.gl/y83aovdDqe6yivdn9",
+      express: "https://www.ubereats.com/cr-en/store/jbs-burgers-belen/kd75zV_sSH-M7_1rcxukXg",
     },
     {
       name: "Alajuela",
@@ -17,16 +22,32 @@ export const Navbar: React.FC = () => {
       express: "https://www.ubereats.com/cr/store/jbs-burgers-alajuela/8qN1q0W2WCisrKYvzLPqDA",
     },
     {
-      name: "San Ramon",
+      name: "San Ramón",
       location: "https://maps.app.goo.gl/aaNVtLsFHeyELcn36",
       express: "https://www.ubereats.com/cr-en/store/jbs-san-ramon/_8_BSt-ZXgGYaCStxS0M_A",
     },
     {
-      name: "Belen",
-      location: "https://maps.app.goo.gl/y83aovdDqe6yivdn9",
-      express: "https://www.ubereats.com/cr-en/store/jbs-burgers-belen/kd75zV_sSH-M7_1rcxukXg",
+      name: "San Rafael de Alajuela",
+      location: "https://www.google.com/maps/search/JB's+Burgers+San+Rafael+de+Alajuela",
+      express: "#",
+    },
+    {
+      name: "Guapiles (frente al hospital)",
+      location: "https://www.google.com/maps/search/JB's+Burgers+Guapiles",
+      express: "#",
+    },
+    {
+      name: "Curridabat (Vía Guayabos)",
+      location: "https://www.google.com/maps/search/JB's+Burgers+Curridabat",
+      express: "#",
+    },
+    {
+      name: "San Rafael de Heredia",
+      location: "https://www.google.com/maps/search/JB's+Burgers+San+Rafael+de+Heredia",
+      express: "#",
     },
   ];
+
 
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);

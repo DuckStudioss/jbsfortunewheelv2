@@ -87,17 +87,19 @@ interface Spin {
 
 // Only create table if it doesn't exist
 db.exec(`
-  CREATE TABLE IF NOT EXISTS spins (
-    id TEXT PRIMARY KEY,
-    customerName TEXT NOT NULL,
-    cedula TEXT NOT NULL,
-    email TEXT NOT NULL,
-    phoneNumber TEXT NOT NULL,
-    award TEXT NOT NULL,
-    isSpecialPrize BOOLEAN DEFAULT 0,
-    isDisbursed BOOLEAN DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+    CREATE TABLE IF NOT EXISTS spins (
+      id TEXT PRIMARY KEY,
+      customerName TEXT NOT NULL,
+      cedula TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phoneNumber TEXT NOT NULL,
+      sucursal TEXT NOT NULL,
+      award TEXT NOT NULL,
+      isSpecialPrize BOOLEAN DEFAULT 0,
+      isDisbursed BOOLEAN DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+
 `);
 
 // Replace the email transporter configuration
@@ -125,10 +127,12 @@ transporter.verify(function (error, success) {
 
 // Modify the POST /api/spins endpoint
 app.post('/api/spins', async (req: Request, res: Response) => {
-  const { customerName, cedula, email, phoneNumber, award, isSpecialPrize } = req.body as any;
+  const { customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize } = req.body as any;
+
   const id = uuidv4();
 
   try {
+    /* 
     // 1. Check if email or cedula already exists
     if (supabase) {
       const { data: existingEmail } = await supabase
@@ -161,6 +165,8 @@ app.post('/api/spins', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Esta cédula ya ha participado' });
       }
     }
+    */
+
 
     // 2. Insert the new spin
     if (supabase) {
@@ -172,17 +178,20 @@ app.post('/api/spins', async (req: Request, res: Response) => {
           cedula,
           email,
           phoneNumber,
+          sucursal,
           award,
           isSpecialPrize: !!isSpecialPrize,
           isDisbursed: false
         }]);
+
       
       if (insertError) throw insertError;
     } else {
       db.prepare(
-        'INSERT INTO spins (id, customerName, cedula, email, phoneNumber, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(id, customerName, cedula, email, phoneNumber, award, isSpecialPrize ? 1 : 0, 0);
+        'INSERT INTO spins (id, customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize ? 1 : 0, 0);
     }
+
     console.log('Spin saved successfully:', { id, customerName, email, award });
 
     // Send email logic (remains same)

@@ -4,16 +4,32 @@ import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { AlertCircle, Ticket, User, Mail, Phone, Hash, Play, Download, Share2, MessageCircle } from "lucide-react";
+
+
 import html2canvas from "html2canvas";
 import { API_URL } from "../config";
 
 const data = [
-  { option: "Papitas GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
-  { option: "Intenta de nuevo", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
-  { option: "Postre GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
-  { option: "Intenta de nuevo", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
-  { option: "Papas Refresco GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "JB's MilkShakes*", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "JB's Fries GRATIS", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "JB's Fries*", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "Gratis Secret Bar", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "10% OFF", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "JB's MilkShakes*", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "JB's Fries GRATIS", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "JB's Fries*", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
+  { option: "Gratis Secret Bar", style: { backgroundColor: '#e1261c', textColor: '#ffffff' } },
+  { option: "10% OFF", style: { backgroundColor: '#1a1a1a', textColor: '#ffffff' } },
 ];
+
+const PRIZE_DETAILS: { [key: string]: string } = {
+  "JB's MilkShakes*": "GRATIS JB's MilkShakes por la compra de cualquier JB's Combo.",
+  "JB's Fries GRATIS": "Gratis JB's Fries.",
+  "JB's Fries*": "Gratis JB's Fries por la compra de cualquier JB's Burger.",
+  "Gratis Secret Bar": "Gratis Secret Bar.",
+  "10% OFF": "10% off en tu próxima compra."
+};
+
 
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -36,6 +52,8 @@ export const SpinWheel: React.FC = () => {
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [mustSpin, setMustSpin] = useState(false);
+
+
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +61,10 @@ export const SpinWheel: React.FC = () => {
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const couponRef = useRef<HTMLDivElement>(null);
 
-  const validateCedula = (value: string) => /^\d{9}$/.test(value);
-  const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  const validatePhoneNumber = (value: string) => /^\d{8}$/.test(value);
+  const validateCedula = (value: string) => value.length > 0;
+  const validateEmail = (value: string) => value.length > 0 && value.includes("@");
+  const validatePhoneNumber = (value: string) => true; // Optional anyway
+
 
   const triggerConfetti = () => {
     const duration = 3 * 1000;
@@ -78,11 +97,14 @@ export const SpinWheel: React.FC = () => {
       return;
     }
 
+
+
     if (!validateCedula(cedula)) {
-      setError("La cédula debe contener exactamente 9 números");
+      setError("Por favor ingrese una cédula");
       setIsSubmitting(false);
       return;
     }
+
 
     if (!validateEmail(email)) {
       setError("Ingrese un correo electrónico válido");
@@ -144,32 +166,36 @@ export const SpinWheel: React.FC = () => {
 
   const handleStopSpinning = async () => {
     setMustSpin(false);
+    
+    // Generate code immediately for testing
+    const fakeId = `JBS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    setCouponCode(fakeId);
+    
     setShowResult(true);
 
     if (data[prizeNumber].option !== "Intenta de nuevo") {
       triggerConfetti();
     }
+    
     try {
-      /*
       // TEMPORARILY DISABLED FOR MARKETING TESTING
-      const response = await axios.post(`${API_URL}/api/spins`, {
+      const prizeName = data[prizeNumber].option;
+      const fullPrize = PRIZE_DETAILS[prizeName] || prizeName;
+      
+      await axios.post(`${API_URL}/api/spins`, {
         customerName: `${firstName} ${lastName}`,
         cedula,
         email,
         phoneNumber,
-        award: data[prizeNumber].option,
+        award: fullPrize,
         isSpecialPrize: false,
       });
-      if (response.data.id) {
-        setCouponCode(response.data.id.substring(0, 8).toUpperCase());
-      }
-      */
-      // Mock ID for testing
-      setCouponCode(Math.random().toString(36).substring(2, 10).toUpperCase());
+
     } catch (error) {
       console.error("Error saving result:", error);
     }
   };
+
 
   const downloadCoupon = async () => {
     if (couponRef.current) {
@@ -177,17 +203,30 @@ export const SpinWheel: React.FC = () => {
         backgroundColor: '#0a0a0a',
         scale: 2,
       });
-      const link = document.createElement('a');
-      link.download = `jbs-cupon-${couponCode}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.9);
-      link.click();
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = 'cupon-jb.jpg';
+          link.href = url;
+          link.click();
+          // Cleanup
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+      }, 'image/jpeg', 0.9);
     }
   };
 
+
+
   const shareOnWhatsApp = () => {
-    const text = `¡Gané un ${data[prizeNumber].option} en la ruleta de JBs Burgers! 🍔🎡 https://www.instagram.com/jbs_burgers/ ¡Ven a participar tú también!`;
+    const prizeName = data[prizeNumber].option;
+    const fullPrize = PRIZE_DETAILS[prizeName] || prizeName;
+    const text = `¡Gané un ${fullPrize} en la ruleta de JBs Burgers! 🍔🎡 https://www.instagram.com/jbs_burgers/ ¡Ven a participar tú también!`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
+
 
   const shareOnFacebook = () => {
     const url = window.location.href;
@@ -196,12 +235,15 @@ export const SpinWheel: React.FC = () => {
 
   const openInstagram = () => {
     if (navigator.share) {
+      const prizeName = data[prizeNumber].option;
+      const fullPrize = PRIZE_DETAILS[prizeName] || prizeName;
       navigator.share({
         title: 'JB\'s Burgers - ¡Gané un premio!',
-        text: `¡Gané un ${data[prizeNumber].option} en la ruleta de JBs Burgers! 🍔🎡 ¡Ven a participar tú también!`,
+        text: `¡Gané un ${fullPrize} en la ruleta de JBs Burgers! 🍔🎡 ¡Ven a participar tú también!`,
         url: window.location.href,
       }).catch(console.error);
     } else {
+
       window.open(`https://www.instagram.com/jbs_burgers/`, '_blank');
     }
   };
@@ -244,7 +286,8 @@ export const SpinWheel: React.FC = () => {
                 transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
               >
                 <img src="/assets/Logo.png" alt="Logo" style={{ width: 120, marginBottom: '1rem' }} />
-                <h3>{data[prizeNumber].option}</h3>
+                <h3 style={{ fontSize: '1.2rem', padding: '0 1rem' }}>{PRIZE_DETAILS[data[prizeNumber].option] || data[prizeNumber].option}</h3>
+
                 {couponCode && (
                   <div className="coupon-code">
                     <span>CÓDIGO:</span>
@@ -339,12 +382,12 @@ export const SpinWheel: React.FC = () => {
               <label><Hash size={12} style={{ marginRight: 4 }} /> CÉDULA</label>
               <input
                 type="text"
-                maxLength={9}
                 value={cedula}
-                onChange={(e) => setCedula(e.target.value.replace(/\D/g, ""))}
-                placeholder="123456789"
+                onChange={(e) => setCedula(e.target.value)}
+                placeholder="Cédula"
                 required
               />
+
             </div>
 
             <div className="form-group">
@@ -357,6 +400,8 @@ export const SpinWheel: React.FC = () => {
                 required
               />
             </div>
+
+
 
             <div className="form-group">
               <label><Phone size={12} style={{ marginRight: 4 }} /> TELÉFONO (OPCIONAL)</label>
