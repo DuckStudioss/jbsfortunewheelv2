@@ -188,18 +188,17 @@ app.post('/api/spins', async (req: Request, res: Response) => {
         .from('spins')
         .insert([{
           id,
-          couponCode,
-          customerName,
+          coupon_code: couponCode,
+          customer_name: customerName,
           cedula,
           email,
-          phoneNumber,
+          phone_number: phoneNumber,
           sucursal,
           award,
-          isSpecialPrize: !!isSpecialPrize,
-          isDisbursed: false
+          is_special_prize: !!isSpecialPrize,
+          is_disbursed: false
         }]);
 
-      
       if (insertError) throw insertError;
     } else {
       db.prepare(
@@ -274,10 +273,26 @@ app.get('/api/spins', async (_: Request, res: Response) => {
       const { data, error } = await supabase
         .from('spins')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
-      res.json(data);
+      
+      // Map snake_case from Supabase to camelCase for the frontend
+      const mappedData = data.map((item: any) => ({
+        id: item.id,
+        couponCode: item.coupon_code,
+        customerName: item.customer_name,
+        cedula: item.cedula,
+        email: item.email,
+        phoneNumber: item.phone_number,
+        award: item.award,
+        isSpecialPrize: !!item.is_special_prize,
+        isDisbursed: !!item.is_disbursed,
+        createdAt: item.created_at,
+        sucursal: item.sucursal
+      }));
+      
+      res.json(mappedData);
     } else {
       const rows = db.prepare('SELECT * FROM spins ORDER BY createdAt DESC').all() as Spin[];
       const formattedRows = rows.map(row => ({
@@ -288,6 +303,7 @@ app.get('/api/spins', async (_: Request, res: Response) => {
       res.json(formattedRows);
     }
   } catch (err: any) {
+    console.error('Error fetching spins:', err);
     res.status(500).json({ error: err.message });
   }
 });

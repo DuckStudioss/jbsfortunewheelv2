@@ -380,8 +380,8 @@ export const SpinWheel: React.FC = () => {
               <input
                 type="text"
                 value={cedula}
-                onChange={(e) => setCedula(e.target.value)}
-                placeholder="Cédula"
+                onChange={(e) => setCedula(e.target.value.replace(/\D/g, ""))}
+                placeholder="Ej: 112340567"
                 required
               />
 
