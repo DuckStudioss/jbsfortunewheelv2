@@ -343,10 +343,20 @@ app.get("/api/spins/cedula/:cedula", async (req, res) => {
 });
 
 // Add endpoint to check special prize availability
-app.get("/api/spins/special-prize", (_, res) => {
+app.get("/api/spins/special-prize", async (_, res) => {
   try {
-    const row = db.prepare('SELECT COUNT(*) as count FROM spins WHERE isSpecialPrize = 1').get() as { count: number };
-    res.json({ awarded: row.count > 0 });
+    if (supabase) {
+      const { count, error } = await supabase
+        .from('spins')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_special_prize', true);
+      
+      if (error) throw error;
+      res.json({ awarded: (count || 0) > 0 });
+    } else {
+      const row = db.prepare('SELECT COUNT(*) as count FROM spins WHERE isSpecialPrize = 1').get() as { count: number };
+      res.json({ awarded: row.count > 0 });
+    }
   } catch (err) {
     console.error("Error checking special prize:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -354,12 +364,22 @@ app.get("/api/spins/special-prize", (_, res) => {
 });
 
 // Add endpoint to update disbursement status
-app.patch("/api/spins/:id/disburse", (req, res) => {
+app.patch("/api/spins/:id/disburse", async (req, res) => {
   const { id } = req.params;
   
   try {
-    db.prepare('UPDATE spins SET isDisbursed = 1 WHERE id = ?').run(id);
-    res.json({ message: "Disbursement status updated successfully" });
+    if (supabase) {
+      const { error } = await supabase
+        .from('spins')
+        .update({ is_disbursed: true })
+        .eq('id', id);
+      
+      if (error) throw error;
+      res.json({ message: "Disbursement status updated successfully" });
+    } else {
+      db.prepare('UPDATE spins SET isDisbursed = 1 WHERE id = ?').run(id);
+      res.json({ message: "Disbursement status updated successfully" });
+    }
   } catch (err) {
     console.error("Error updating disbursement status:", err);
     return res.status(500).json({ message: "Internal server error" });
