@@ -352,6 +352,11 @@ app.patch("/api/spins/:id/disburse", (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at port ${port}`);
-}); 
+// Export for Vercel
+export default app;
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server running at port ${port}`);
+  });
+}
