@@ -115,23 +115,8 @@ interface Spin {
   createdAt?: string;
 }
 
-// Only create table if it doesn't exist
-db.exec(`
-    CREATE TABLE IF NOT EXISTS spins (
-      id TEXT PRIMARY KEY,
-      couponCode TEXT,
-      customerName TEXT NOT NULL,
-      cedula TEXT NOT NULL,
-      email TEXT NOT NULL,
-      phoneNumber TEXT NOT NULL,
-      sucursal TEXT NOT NULL,
-      award TEXT NOT NULL,
-      isSpecialPrize BOOLEAN DEFAULT 0,
-      isDisbursed BOOLEAN DEFAULT 0,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
 
-`);
+// End of initialization
 
 // Replace the email transporter configuration
 const transporter = nodemailer.createTransport({
