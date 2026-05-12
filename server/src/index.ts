@@ -84,13 +84,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// Update database initialization
-const dbPath = process.env.RENDER_DISK_PATH 
-  ? path.join(process.env.RENDER_DISK_PATH, 'spins4.db')
-  : 'spins4.db';
 
-const db = new Database(dbPath);
-console.log('Connected to spins4 database at:', dbPath);
+// Initialize table if using SQLite
+if (db) {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS spins (
+      id TEXT PRIMARY KEY,
+      customerName TEXT NOT NULL,
+      cedula TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
+      phoneNumber TEXT,
+      award TEXT NOT NULL,
+      isSpecialPrize INTEGER DEFAULT 0,
+      isDisbursed INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      sucursal TEXT,
+      couponCode TEXT
+    )
+  `).run();
+}
 
 interface Spin {
   id: string;
