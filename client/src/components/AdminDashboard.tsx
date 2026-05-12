@@ -7,16 +7,16 @@ import axios from "axios";
 export const AdminDashboard: React.FC = () => {
   const [spins, setSpins] = useState<Spin[]>([]);
 
-  useEffect(() => {
-    const fetchSpins = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/spins`);
-        setSpins(response.data);
-      } catch (error) {
-        console.error("Error fetching spins:", error);
-      }
-    };
+  const fetchSpins = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/spins`);
+      setSpins(response.data);
+    } catch (error) {
+      console.error("Error fetching spins:", error);
+    }
+  };
 
+  useEffect(() => {
     fetchSpins();
   }, []);
 
@@ -24,17 +24,29 @@ export const AdminDashboard: React.FC = () => {
     try {
       await axios.patch(`${API_URL}/api/spins/${id}/disburse`);
       // Refresh spins after disbursement
-      const response = await axios.get(`${API_URL}/api/spins`);
-      setSpins(response.data);
+      await fetchSpins();
     } catch (error) {
       console.error("Error updating disbursement:", error);
     }
   };
 
   return (
-    <div className="admin-dashboard">
-      <h1>Admin Dashboard</h1>
-      <AdminTable spins={spins} onDisbursed={handleDisbursed} />
+    <div className="main-container">
+      <div className="admin-dashboard">
+        <div className="admin-header">
+          <h1 className="admin-title">Panel de Control</h1>
+          <button 
+            className="logout-btn" 
+            onClick={() => {
+              localStorage.removeItem("isAdminAuthenticated");
+              window.location.reload();
+            }}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+        <AdminTable spins={spins} onDisbursed={handleDisbursed} onRefresh={fetchSpins} />
+      </div>
     </div>
   );
 };

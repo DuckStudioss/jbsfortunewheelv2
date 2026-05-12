@@ -1,5 +1,6 @@
 export interface Spin {
   id: string;
+  couponCode?: string;
   customerName: string;
   cedula: string;
   email: string;

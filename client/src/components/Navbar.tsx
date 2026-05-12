@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, MapPin, Truck } from "lucide-react";
+import { Menu, X, MapPin } from "lucide-react";
 import "./Navbar.css";
 const Logo = "/assets/Logo.png";
 
@@ -74,21 +74,6 @@ export const Navbar: React.FC = () => {
         </Link>
 
         <div className="navbar-desktop">
-          <div className="nav-item">
-            <button 
-              className={`nav-link ${activeDropdown === 'express' ? 'active' : ''}`}
-              onClick={() => handleDropdownClick('express')}
-            >
-              <Truck size={18} /> EXPRESS
-            </button>
-            {activeDropdown === 'express' && (
-              <div className="dropdown-menu">
-                {sucursales.map(s => (
-                  <a key={s.name} href={s.express} target="_blank" rel="noreferrer">{s.name}</a>
-                ))}
-              </div>
-            )}
-          </div>
 
           <div className="nav-item">
             <button 
@@ -116,10 +101,6 @@ export const Navbar: React.FC = () => {
         {isOpen && (
           <div className="navbar-mobile">
             <Link to="/" onClick={() => setIsOpen(false)}>INICIO</Link>
-            <div className="mobile-section-title">EXPRESS</div>
-            {sucursales.map(s => (
-              <a key={s.name} href={s.express} target="_blank" rel="noreferrer">{s.name}</a>
-            ))}
             <div className="mobile-section-title">UBICACIONES</div>
             {sucursales.map(s => (
               <a key={s.name} href={s.location} target="_blank" rel="noreferrer">{s.name}</a>

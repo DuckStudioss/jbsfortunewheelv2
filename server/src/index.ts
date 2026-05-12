@@ -77,6 +77,7 @@ console.log('Connected to spins4 database at:', dbPath);
 
 interface Spin {
   id: string;
+  couponCode?: string;
   customerName: string;
   email: string;
   award: string;
@@ -89,6 +90,7 @@ interface Spin {
 db.exec(`
     CREATE TABLE IF NOT EXISTS spins (
       id TEXT PRIMARY KEY,
+      couponCode TEXT,
       customerName TEXT NOT NULL,
       cedula TEXT NOT NULL,
       email TEXT NOT NULL,
@@ -127,12 +129,11 @@ transporter.verify(function (error, success) {
 
 // Modify the POST /api/spins endpoint
 app.post('/api/spins', async (req: Request, res: Response) => {
-  const { customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize } = req.body as any;
+  const { customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize, couponCode } = req.body as any;
 
   const id = uuidv4();
 
   try {
-    /* 
     // 1. Check if email or cedula already exists
     if (supabase) {
       const { data: existingEmail } = await supabase
@@ -165,7 +166,6 @@ app.post('/api/spins', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Esta cédula ya ha participado' });
       }
     }
-    */
 
 
     // 2. Insert the new spin
@@ -174,6 +174,7 @@ app.post('/api/spins', async (req: Request, res: Response) => {
         .from('spins')
         .insert([{
           id,
+          couponCode,
           customerName,
           cedula,
           email,
@@ -188,8 +189,8 @@ app.post('/api/spins', async (req: Request, res: Response) => {
       if (insertError) throw insertError;
     } else {
       db.prepare(
-        'INSERT INTO spins (id, customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(id, customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize ? 1 : 0, 0);
+        'INSERT INTO spins (id, couponCode, customerName, cedula, email, phoneNumber, sucursal, award, isSpecialPrize, isDisbursed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, couponCode || null, customerName, cedula, email, phoneNumber, sucursal || 'Escazú', award, isSpecialPrize ? 1 : 0, 0);
     }
 
     console.log('Spin saved successfully:', { id, customerName, email, award });

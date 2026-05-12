@@ -119,8 +119,6 @@ export const SpinWheel: React.FC = () => {
     }
 
     try {
-      /* 
-      // TEMPORARILY DISABLED FOR MARKETING TESTING
       // Check existing spin by cedula
       try {
         await axios.get(`${API_URL}/api/spins/cedula/${cedula}`);
@@ -140,7 +138,6 @@ export const SpinWheel: React.FC = () => {
       } catch (err: any) {
         if (err.response?.status !== 404) throw err;
       }
-      */
 
       // Check special prize
       const specialRes = await axios.get(`${API_URL}/api/spins/special-prize`);
@@ -148,7 +145,7 @@ export const SpinWheel: React.FC = () => {
 
       let newPrizeNumber;
       if (isSpecialPrizeAvailable && Math.random() < 0.01) {
-        newPrizeNumber = 3; // Special index if we had one, but let's just pick from data
+        newPrizeNumber = 3; 
       } else {
         const available = data.map((_, i) => i);
         newPrizeNumber = available[Math.floor(Math.random() * available.length)];
@@ -167,9 +164,9 @@ export const SpinWheel: React.FC = () => {
   const handleStopSpinning = async () => {
     setMustSpin(false);
     
-    // Generate code immediately for testing
-    const fakeId = `JBS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    setCouponCode(fakeId);
+    // Generate code
+    const generatedCoupon = `JBS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    setCouponCode(generatedCoupon);
     
     setShowResult(true);
 
@@ -178,7 +175,6 @@ export const SpinWheel: React.FC = () => {
     }
     
     try {
-      // TEMPORARILY DISABLED FOR MARKETING TESTING
       const prizeName = data[prizeNumber].option;
       const fullPrize = PRIZE_DETAILS[prizeName] || prizeName;
       
@@ -188,6 +184,7 @@ export const SpinWheel: React.FC = () => {
         email,
         phoneNumber,
         award: fullPrize,
+        couponCode: generatedCoupon,
         isSpecialPrize: false,
       });
 
