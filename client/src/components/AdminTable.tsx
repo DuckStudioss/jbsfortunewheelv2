@@ -65,8 +65,8 @@ export const AdminTable: React.FC<AdminTableProps> = ({
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
-        const aValue = a[sortField];
-        const bValue = b[sortField];
+        const aValue = a[sortField] ?? "";
+        const bValue = b[sortField] ?? "";
         if (sortDirection === "asc") {
           return aValue < bValue ? -1 : 1;
         } else {
