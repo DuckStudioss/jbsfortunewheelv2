@@ -8,14 +8,31 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config();
 
-const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_URL.startsWith('http') && process.env.SUPABASE_KEY) 
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
-  : null;
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
-if (supabase) {
-  console.log('Supabase client initialized successfully');
-} else {
-  console.log('Supabase credentials missing, falling back to SQLite');
+console.log('Initializing DB connection...');
+console.log('Supabase URL present:', !!SUPABASE_URL);
+
+let supabase: any = null;
+let db: any = null;
+
+try {
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    console.log('Connecting to Supabase...');
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  } else {
+    console.log('No Supabase credentials, falling back to SQLite...');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('CRITICAL: SQLite is not supported in production on Vercel. Please set SUPABASE_URL and SUPABASE_KEY.');
+    }
+    const dbPath = process.env.RENDER_DISK_PATH 
+      ? path.join(process.env.RENDER_DISK_PATH, 'spins4.db')
+      : 'spins4.db';
+    db = new Database(dbPath);
+  }
+} catch (err) {
+  console.error('Failed to initialize database:', err);
 }
 
 console.log('Email config:', {
